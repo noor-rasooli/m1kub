@@ -5,7 +5,7 @@ Nous avons fourni les fichiers techniques de déploiement, de gestion des logs, 
 
 Dans le branch master :
 
-- Chaque fichier est rangé dans son répertoire respectif, avec le fichier AUTHORS.txt.
+- Chaque fichier est rangé dans son répertoire respectif, + fichier AUTHORS.txt.
 - Les commandes utilisées sont ajoutées au fichier README.
 - Le diaporama utilisé pour notre présentation de groupe est également présent.
 
@@ -35,6 +35,7 @@ kubectl apply -f .\appscore_deployment.yaml
 ```
 
 Pour supprimer:
+git push -u origin master
 
 ```console
 kubectl delete -f .\appscore_deployment.yaml
