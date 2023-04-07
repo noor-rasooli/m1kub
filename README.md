@@ -1,6 +1,16 @@
 # Master 1 Kubernetes
 Conteneurisation et Orchestration
 
+Nous avons fourni les fichiers techniques de déploiement, de gestion des logs, de bilan de santé, ainsi que les certificats pour la sécurité. L'ingress est également inclus.
+
+Dans le branch master :
+
+- Chaque fichier est rangé dans son répertoire respectif, avec le fichier AUTHORS.txt.
+- Les commandes utilisées sont ajoutées au fichier README.
+- Le diaporama utilisé pour notre présentation de groupe est également présent.
+
+Cordialement,
+
 ### 1)  Lancer un Cluster Kubernetes avec Docker Desktop
 ```console
 docker-compose up
