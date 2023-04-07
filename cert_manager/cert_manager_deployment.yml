@@ -1,0 +1,23 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: appscore-selfsigned-issuer
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: appscore-selfsigned-ca
+#  namespace: cert-manager
+spec:
+  isCA: true
+  commonName: appscore-selfsigned-ca
+  secretName: appscore-root-secret
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: appscore-selfsigned-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io

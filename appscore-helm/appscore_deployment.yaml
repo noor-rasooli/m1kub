@@ -1,0 +1,582 @@
+# -------------------------------------------- Namespace creation ----------------------------------------------------
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: appscore
+---
+# -------------------------------------------- Volumes creation -----------------------------------------------------
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mssql-volume-claim
+  namespace: appscore
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-volume-claim
+  namespace: appscore
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+---
+# ------------------------------------------------- Web service --------------------------------------------------------
+# Web deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-deployment
+  namespace: appscore
+  # annotations:
+  #   prometheus.io/scrape: 'true'
+  #   prometheus.io/port: '80'    
+  labels:
+    app: web-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web-pod
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/port: '80'
+        
+      labels:
+        app: web-pod
+    spec:
+      #---------------------------------------------- Affinity -------------------------------------------------------
+      # Use "kubectl get nodes --show-labels" to retrieve nodes labels.
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - docker-desktop
+      #----------------------------------------------------------------------------------------------------------------
+      containers:
+      - image: chloemrk/project-appscore:web
+        env:
+        - name: ASPNETCORE_ENVIRONMENT
+          value: "Development"
+        #-------------------------------------------- Liveness and readness probe -------------------------------------
+        livenessProbe:
+          httpGet:
+            path: /Home/Contact
+            port: 80
+            httpHeaders:
+            - name: Custom-Header
+              value: Awesome
+          initialDelaySeconds: 3
+          periodSeconds: 3
+        readinessProbe:
+          httpGet:
+            path: /Home/Contact
+            port: 80
+            httpHeaders:
+            - name: Custom-Header
+              value: Awesome
+          initialDelaySeconds: 3
+          periodSeconds: 3
+        #--------------------------------------------------------------------------------------------------
+        name: web-container
+        ports:
+        - protocol: TCP 
+          containerPort: 80
+          name: web-port
+        resources:
+            requests:
+              memory: 900Mi
+              cpu: 4m
+            limits:
+              memory: 2000Mi
+              cpu: 1
+      restartPolicy: Always
+---
+# Web service
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-service
+  namespace: appscore
+  # annotations:
+  #   prometheus.io/scrape: 'true'
+  #   prometheus.io/port:   '80'
+spec:
+  selector:
+    app: web-pod
+  ports:
+    - protocol: TCP 
+      port: 8080
+      targetPort: 80
+  type: ClusterIP
+---
+# ------------------------------------------------- Applicants service --------------------------------------------------------
+# Applicants deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: applicants-deployment
+  namespace: appscore
+  # annotations:
+  #   prometheus.io/scrape: 'true'
+  #   prometheus.io/port:   '80'
+  labels:
+    app: applicants-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: applicants-pod
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/port:   '80'
+        
+      labels:
+        app: applicants-pod
+    spec:
+      #---------------------------------------------- Affinity -------------------------------------------------------
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - docker-desktop
+      #----------------------------------------------------------------------------------------------------------------
+      containers:
+      - image: chloemrk/project-appscore:applicants.api
+        name: applicants-container
+        env:
+        - name: ConnectionString
+          value: "Server=data-service;User=sa;Password=Pass@word;Database=dotnetgigs.applicants;"
+        - name: HostRabbitmq
+          value: "rabbitmq-service"
+        ports:
+        - protocol: TCP  
+          containerPort: 80
+          name: applicants-port
+        resources:
+            requests:
+              memory: 500Mi
+              cpu: 0.5
+            limits:
+              memory: 1500Mi
+              cpu: 1
+      restartPolicy: Always
+---
+# Applicants service
+apiVersion: v1
+kind: Service
+metadata:
+  name: applicants-service
+  namespace: appscore
+  # annotations:
+  #   prometheus.io/scrape: 'true'
+  #   prometheus.io/port:   '80'
+spec:
+  selector:
+    app: applicants-pod
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: ClusterIP
+---
+# ------------------------------------------------- Identity service --------------------------------------------------------
+# Identity deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: identity-deployment
+  namespace: appscore
+  # annotations:
+  #   prometheus.io/scrape: 'true'
+  #   prometheus.io/port:   '80'
+  labels:
+    app: identity-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: identity-pod
+  template:
+    metadata:
+      # annotations:
+      #   prometheus.io/scrape: 'true'
+      #   prometheus.io/port:   '80'
+      labels:
+        app: identity-pod
+    spec:
+      #---------------------------------------------- Affinity -------------------------------------------------------
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - docker-desktop
+      #----------------------------------------------------------------------------------------------------------------
+      containers:
+      - image: chloemrk/project-appscore:identity.api
+        name: identity-container
+        env:
+        - name: RedisHost
+          value: "userdata-service"
+        - name: HostRabbitmq
+          value: "rabbitmq-service"
+        ports:
+        - protocol: TCP  
+          containerPort: 80
+          name: identity-port
+        resources:
+            requests:
+              memory: 500Mi
+              cpu: 0.5
+            limits:
+              memory: 1500Mi
+              cpu: 1
+      restartPolicy: Always
+---
+# Identity service
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-api-identity
+  namespace: appscore
+  # annotations:
+  #   prometheus.io/scrape: 'true'
+  #   prometheus.io/port:   '80'
+spec:
+  selector:
+    app: identity-pod
+  ports:
+    - protocol: TCP 
+      port: 80
+      targetPort: 80
+  type: ClusterIP
+---
+# ------------------------------------------------- Jobs service --------------------------------------------------------
+# Jobs deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jobs-deployment
+  namespace: appscore
+  # annotations:
+  #   prometheus.io/scrape: 'true'
+  #   prometheus.io/port:   '80'
+  labels:
+    app: jobs-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jobs-pod
+  template:
+    metadata:
+      # annotations:
+      #   prometheus.io/scrape: 'true'
+      #   prometheus.io/port:   '80'
+      labels:
+        app: jobs-pod
+    spec:
+      #---------------------------------------------- Affinity -------------------------------------------------------
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - docker-desktop
+      #----------------------------------------------------------------------------------------------------------------
+      containers:
+      - image: chloemrk/project-appscore:jobs.api
+        name: jobs-container
+        env:
+        - name: ConnectionString
+          value: "Server=data-service;User=sa;Password=Pass@word;Database=dotnetgigs.jobs;"
+        - name: HostRabbitmq
+          value: "rabbitmq-service"
+        ports:
+        - protocol: TCP 
+          containerPort: 80
+          name: jobs-port
+        resources:
+            requests:
+              memory: 500Mi
+              cpu: 0.5
+            limits:
+              memory: 1500Mi
+              cpu: 1
+      restartPolicy: Always
+---
+# Jobs service
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-api-jobs
+  namespace: appscore
+  # annotations:
+  #   prometheus.io/scrape: 'true'
+  #   prometheus.io/port:   '80'
+spec:
+  selector:
+    app: jobs-pod
+  ports:
+    - protocol: TCP 
+      port: 80
+      targetPort: 80
+  type: ClusterIP
+---
+# ------------------------------------------------- Data service --------------------------------------------------------
+# Data deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-deployment
+  namespace: appscore
+  # annotations:
+  #   prometheus.io/scrape: 'true'
+  #   prometheus.io/port:   '80'  
+  labels:
+    app: data-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: data-pod
+  template: 
+    metadata:
+      # annotations:
+      #   prometheus.io/scrape: 'true'
+      #   prometheus.io/port:   '80'
+      labels:
+        app: data-pod
+    spec:
+      #---------------------------------------------- Affinity -------------------------------------------------------
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - docker-desktop
+      #----------------------------------------------------------------------------------------------------------------
+      containers:
+      - image: chloemrk/project-appscore:mysqlserver
+        name: data-container
+        ports:
+        - protocol: TCP 
+          containerPort: 1433
+          name: data-port
+        volumeMounts:
+        - name: mssql-volume
+          mountPath: /var/opt/mssql
+      volumes:
+      - name: mssql-volume
+        persistentVolumeClaim:
+          claimName: mssql-volume-claim
+      restartPolicy: Always
+---
+# Data service
+apiVersion: v1
+kind: Service
+metadata:
+  name: data-service
+  namespace: appscore
+  # annotations:
+  #   prometheus.io/scrape: 'true'
+  #   prometheus.io/port:   '80'
+spec:
+  selector:
+    app: data-pod
+  ports:
+    - protocol: TCP
+      port: 1433
+      targetPort: 1433
+  type: ClusterIP
+---
+# ------------------------------------------------- Rabbitmq service --------------------------------------------------------
+# Rabbitmq deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq-deployment
+  namespace: appscore
+  # annotations:
+  #   prometheus.io/scrape: 'true'
+  #   prometheus.io/port:   '15672'
+  labels:
+    app: rabbitmq-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rabbitmq-pod
+  template: 
+    metadata:
+      labels:
+        app: rabbitmq-pod
+    spec:
+      containers:
+      - image: rabbitmq:3-management
+        name: rabbitmq-container
+        ports:
+        - protocol: TCP 
+          containerPort: 15672
+          name: rmq-cli-port
+        - protocol: TCP 
+          containerPort: 5672
+          name: rmq-port
+      restartPolicy: Always
+---
+# Rabbitmq service
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq-service
+  namespace: appscore
+  # annotations:
+  #   prometheus.io/scrape: 'true'
+  #   prometheus.io/port:   '15672'
+spec:
+  selector:
+    app: rabbitmq-pod
+  ports:
+    - protocol: TCP  
+      name: rmq-cli-serv-p
+      port: 15672
+      targetPort: 15672
+    - protocol: TCP 
+      name: rmq-serv-p
+      port: 5672
+      targetPort: 5672
+  type: ClusterIP
+---
+# ------------------------------------------------- Userdata service --------------------------------------------------------
+# Userdata deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: userdata-deployment
+  namespace: appscore
+  # annotations:
+  #   prometheus.io/scrape: 'true'
+  #   prometheus.io/port:   '6379'
+  labels:
+    app: userdata-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: userdata-pod
+  template: 
+    metadata:
+    # annotations:
+    #   prometheus.io/scrape: 'true'
+    #   prometheus.io/port:   '6379'
+      labels:
+        app: userdata-pod
+    spec:
+      #---------------------------------------------- Affinity -------------------------------------------------------
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - docker-desktop
+      #----------------------------------------------------------------------------------------------------------------
+      containers:
+      - image: redis
+        name: userdata-container
+        ports:
+        - protocol: TCP 
+          containerPort: 6379
+          name: userdata-port
+        volumeMounts:
+        - name: redis-volume
+          mountPath: /data
+        resources:
+            requests:
+              memory: 500Mi
+              cpu: 4m
+      volumes:
+      - name: redis-volume
+        persistentVolumeClaim:
+          claimName: redis-volume-claim
+      restartPolicy: Always
+---
+# Userdata service
+apiVersion: v1
+kind: Service
+metadata:
+  name: userdata-service
+  namespace: appscore
+  # annotations:
+  #   prometheus.io/scrape: 'true'
+  #   prometheus.io/port:   '6379'
+spec:
+  selector:
+    app: userdata-pod
+  ports:
+    - protocol: TCP 
+      port: 6379
+      targetPort: 6379
+  type: ClusterIP
+---
+# ------------------------------------------------- Ingress Controller creation --------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: appscore-ingress
+  namespace: appscore
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    #nginx.ingress.kubernetes.io/rewrite-target: /
+    #prometheus.io/scrape: 'true'
+    #prometheus.io/port:   '9090'
+    #cert-manager.io/cluster-issuer: appscore-selfsigned-issuer
+
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: web-service
+            port:
+              number: 8080
+  tls:
+    - hosts:
+        - localhost
+      #secretName: appscore-root-secret
