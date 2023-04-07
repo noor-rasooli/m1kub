@@ -2,7 +2,7 @@
 
 Notre groupe est constitué de :
 
-- Amel MENGUILTI : Création d'images et déploiement
+- Amel MENGUELTI : Création d'images et déploiement
 - Noor RASOOLI : Déploiement, création d'images et gestion des logs
 - Zakaria SABOUR : Création d'images et bilan de santé
 - Oussama TAHA : Déploiement et création d'images
