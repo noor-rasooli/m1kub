@@ -9,7 +9,6 @@ Dans le branch master :
 - Les commandes utilisées sont ajoutées au fichier README.
 - Le diaporama utilisé pour notre présentation de groupe est également présent.
 
-Cordialement,
 
 ### 1)  Lancer un Cluster Kubernetes avec Docker Desktop
 ```console
