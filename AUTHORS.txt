@@ -1,0 +1,18 @@
+# Projet Conteneurisation et Orchestration
+
+Notre groupe est constitué de :
+
+- Amel MENGUILTI : Création d'images et déploiement
+- Noor RASOOLI : Déploiement, création d'images et gestion des logs
+- Zakaria SABOUR : Création d'images et bilan de santé
+- Oussama TAHA : Déploiement et création d'images
+
+Nous avons fourni les fichiers techniques de déploiement, de gestion des logs, de bilan de santé, ainsi que les certificats pour la sécurité. L'ingress est également inclus.
+
+Dans le dossier APPSCORE :
+
+- Chaque fichier est rangé dans son répertoire respectif, avec le fichier AUTHORS.txt.
+- Les commandes utilisées sont ajoutées au fichier README.
+- Le diaporama utilisé pour notre présentation de groupe est également présent.
+
+Cordialement,

@@ -1,0 +1,49 @@
+#Depuis l'image
+FROM mcr.microsoft.com/dotnet/core/aspnet:2.1-stretch-slim as base
+
+#Créer un répertoire /app et exposer les ports 80 et 443
+WORKDIR /app
+EXPOSE 80
+EXPOSE 443
+
+#Depuis l'image et  Copier les dossiers Services/(dossier qui contient le fichier csproj) 
+#et Foundation/Events dans le répertoire /src
+FROM mcr.microsoft.com/dotnet/core/sdk:2.1-stretch as build
+WORKDIR /src
+COPY ./Foundation/Events ./Foundation/Events
+COPY ./Services ./Services
+
+# - Exécuter la commande "dotnet restore {nom_du_projet.csproj}" 
+# on a editer le path
+# WORKDIR /src 
+# RUN dotnet restore ./Services/Applicants.Api/applicants.api.csproj
+WORKDIR /src/Services/Applicants.Api/
+RUN dotnet restore applicants.api.csproj
+
+#- On ne Faites pas une copie intégrale POUR L'INSTANT
+COPY . .
+#- Placez vous dans le dossier du projet (dossier qui contient le fichier csproj)
+WORKDIR /src/Services/Applicants.Api/
+
+# - Exécuter la commande "dotnet build "{nom_du_projet.csproj}" -c Release -o /app/build"
+RUN dotnet build applicants.api.csproj -c Release -o /app/build
+
+# - Depuis l'image build vers une nouvelle image qui vous nomerez "publish", 
+# éxécuter la commande "dotnet publish "{nom_du_projet.csproj}" -c Release -o /app/publish"
+FROM build as publish
+
+RUN dotnet publish applicants.api.csproj -c Release -o /app/publish
+
+#Depuis l'image base vers une nouvelle image qui vous nomerez "final", 
+#placez-vous dans le dossier /app, copier ce que vous avez créer dans l'image publish 
+# vers le dossier /app/publish de l'image final.
+FROM base as final
+WORKDIR /app
+COPY --from=publish /app/publish .
+
+# - Exécuter le entrypoint suivant: ["dotnet", "{nom_du_projet.dll}"]
+
+ENTRYPOINT ["dotnet", "{Events.dll}"]
+
+
+# docker build -t imageservices .

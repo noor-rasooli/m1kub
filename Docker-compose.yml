@@ -1,0 +1,131 @@
+version: "3.9"
+# networks:
+#   my-network:
+#     driver: bridge
+#     config:
+#       - subnet: 172.20.0.0/16
+#         gateway: 172.20.0.1
+#     external: true
+
+# Networks:
+#   api-network: 
+#     driver: mcvlan
+#     config:
+#       - subnet: 172.18.0.0/16
+#         gateway: 172.18.0.1
+#     external: true
+
+services:
+  user.data: #1
+    container_name: user.data
+    image: redis:latest
+    restart: on-failure
+    ports:
+      - 6379:6379
+    # networks:
+    #   my-network: bridge
+
+  rabbitmq: #2
+    container_name: rabbitmq
+    image: rabbitmq:3-management
+    restart: on-failure
+    ports:
+      - 15672:15672
+      - 5672:5672
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    # networks:
+    #   my-network: bridge
+
+  sql.data: #3
+    image: mssql-linux
+    container_name: mssql-linux
+    build: 
+      context: ./Database
+      dockerfile: Dockerfile
+    restart: on-failure
+    ports:
+      - 5433:1433
+    # networks:
+    #   my-network: bridge
+    # volumes:
+    #   - /opt/mssql/bin/sqlserver
+
+  applicants.api: #4
+    image: applicants.api
+    container_name: applicants.api
+    build:
+      context: .
+      dockerfile: dockerfile.applicants.api
+    restart: on-failure
+    ports:
+      - 8081:80
+    # Networks:
+    #   api-network: mcvlan
+    environment:
+      - ConnectionString=Server=sql.data;User=sa;Password=Pass@word;Database=dotnetgigs.applicants;
+      - HostRabbitmq=rabbitmq
+    depends_on:
+      rabbitmq:
+          condition: service_healthy
+
+  jobs.api: #5
+    image: jobs.api
+    container_name: jobs.api
+    build:
+      context: .
+      dockerfile: dockerfile.jobs.api
+    restart: on-failure
+    ports:
+      - 8083:80
+    # Networks:
+    #   api-network: mcvlan
+    environment:
+      - ConnectionString=Server=sql.data;User=sa;Password=Pass@word;Database=dotnetgigs.jobs;
+      - HostRabbitmq=rabbitmq
+    depends_on:
+      rabbitmq:
+          condition: service_healthy
+
+  identity.api: #6
+    container_name: identity.api
+    build:
+      context: .
+      dockerfile: dockerfile.identity.api
+    restart: on-failure
+    ports:
+      - 8084:80
+    # Networks:
+    #   api-network: mcvlan
+    environment:
+      - RedisHost=user.data:6379
+      - HostRabbitmq=rabbitmq
+    depends_on:
+      rabbitmq:
+          condition: service_healthy
+
+  web: #7
+    container_name: web
+    build:
+      context: . 
+      dockerfile: dockerfile.web
+    restart: on-failure
+    ports:
+      - 8080:80
+    # networks:
+    #   my-network: mcvlan
+    environment: # log en cas de probléme sur localhost:80:80
+      - ASPNETCORE_ENVIRONMENT=Development
+    links:
+      - "identity.api:service-api-identity"
+      - "jobs.api:service-api-jobs" 
+    depends_on: 
+      - applicants.api
+      - jobs.api
+      - identity.api
+
+
+#docker-compose up --force-recreate
